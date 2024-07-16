@@ -24,6 +24,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int trace(int);
+
+#include "kernel/sysinfo.h"
 int sysinfo(struct sysinfo*);
 
 // ulib.c
