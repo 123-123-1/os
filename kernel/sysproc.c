@@ -107,3 +107,20 @@ sys_trace(void)
   myproc()->mask=mask;
   return 0;
 }
+
+#include "sysinfo.h"
+
+uint64
+sys_sysinfo(void)
+{
+  struct proc* q=myproc();
+  struct sysinfo p;
+  uint64 pointer;
+  if(argaddr(0,&pointer)<0)
+    return -1;
+  p.freemem=memc();
+  p.nproc=procc();
+  if(copyout(q->pagetable,pointer,(char*)&p,sizeof(p))<0)
+    return -1;
+  return 0;
+}
