@@ -464,6 +464,7 @@ pagewalk(pagetable_t pagetable,uint64 level)
       pagetable[i] = 0;
     } 
   }
+  return 0;
 }
 
 int 
@@ -471,4 +472,5 @@ vmprint(pagetable_t pagrtable)
 {
   printf("page table %p\n");
   pagewalk(pagrtable,1);
+  return 0;
 }
