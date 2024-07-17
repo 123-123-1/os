@@ -31,9 +31,17 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
 
-      p->state=UNUSED;
-      p->pid=0;
+      // Allocate a page for the process's kernel stack.
+      // Map it high in memory, followed by an invalid
+      // guard page.
+      char *pa = kalloc();
+      if(pa == 0)
+        panic("kalloc");
+      uint64 va = KSTACK((int) (p - proc));
+      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      p->kstack = va;
   }
+  kvminithart();
 }
 
 // Must be called with interrupts disabled,
@@ -86,7 +94,6 @@ allocproc(void)
 {
   struct proc *p;
 
-
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if(p->state == UNUSED) {
@@ -99,18 +106,6 @@ allocproc(void)
 
 found:
   p->pid = allocpid();
-  p->kpagetable =nkvminit();
-  if(p->kpagetable==0){
-    freeproc(p);
-    release(&p->lock);
-    return 0;
-  }
-  char *pa = kalloc();
-  if(pa == 0)
-    panic("kalloc");
-  uint64 va = KSTACK((int) (p - proc));
-  nkvmmap(p->kpagetable,va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-  p->kstack = va;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
