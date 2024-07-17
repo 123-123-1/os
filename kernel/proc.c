@@ -113,7 +113,7 @@ found:
   char *pa = kalloc();
   if(pa == 0)
     panic("kalloc");
-  uint64 va = KSTACK((int) (p - proc));
+  uint64 va = MAXVA - 4*PGSIZE;
   mappages(p->kpagetable,va, PGSIZE,(uint64)pa, PTE_R | PTE_W);
   p->kstack = va;
 
@@ -133,6 +133,37 @@ found:
 
   return p;
 }
+
+void 
+free(pagetable_t pagetable)
+{
+    // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      free((pagetable_t)PTE2PA(pte));
+      pagetable[i] = 0;
+    } 
+    else if(pte & PTE_V){
+      pagetable[i] = 0;
+    }
+  }
+  kfree((void*)pagetable);
+}
+
+void 
+freekpage(pagetable_t pagetable,uint64 stack)
+{
+  if(stack)
+  {
+    pte_t *pte = walk(pagetable,stack, 0);
+    kfree((void *)PTE2PA(*pte));
+  }
+  
+  free(pagetable);
+}
+
 
 // free a proc structure and the data hanging from it,
 // including user pages.
@@ -483,7 +514,9 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        nkvminithart(p->kpagetable);
+        w_satp(MAKE_SATP(p->kpagetable));
+        sfence_vma();
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
