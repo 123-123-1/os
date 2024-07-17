@@ -40,7 +40,6 @@ procinit(void)
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
       p->kstack = va;
-      p->kstack_pa = pa;
   }
   kvminithart();
 }
@@ -107,20 +106,12 @@ allocproc(void)
 
 found:
   p->pid = allocpid();
-  
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
     return 0;
   }
-
-  p->kpagetable = nkvminit();
-  if(p->kpagetable == 0){
-    freeproc(p);
-    release(&p->lock);
-    return 0;
-  }
-  nkvmmap(p->kpagetable,p->kstack,p->kstack_pa,PGSIZE,PTE_R);
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -148,9 +139,6 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
-  if(p->kpagetable)
-    freekpage(p->kpagetable);
-  p->kpagetable = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -218,8 +206,6 @@ uchar initcode[] = {
   0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00
 };
-
-
 
 // Set up first user process.
 void
@@ -487,13 +473,12 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        nkvminithart(p->kpagetable);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
-        kvminithart();
+
         found = 1;
       }
       release(&p->lock);
