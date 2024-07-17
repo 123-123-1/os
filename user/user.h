@@ -1,4 +1,6 @@
 struct stat;
+struct rtcdate;
+struct sysinfo;
 
 // system calls
 int fork(void);
@@ -9,7 +11,7 @@ int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
 int kill(int);
-int exec(const char*, char**);
+int exec(char*, char**);
 int open(const char*, int);
 int mknod(const char*, short, short);
 int unlink(const char*);
@@ -22,6 +24,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+#ifdef LAB_NET
+int connect(uint32, uint16, uint16);
+#endif
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -39,3 +44,4 @@ void free(void*);
 int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
+int statistics(void*, int);
