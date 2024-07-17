@@ -445,17 +445,13 @@ int
 pagewalk(pagetable_t pagetable,uint64 level)
 {
   char* front;
-  switch(level){
-    case 1:
-      front = "..";
-      break;
-    case 2:
-      front = ".. ..";
-      break;
-    case 3:
-      front = ".. .. ..";
-      break;
-  }
+  if(level==1)
+    front = "..";
+  else if(level==2)
+    front = ".. ..";
+  else
+    front = ".. .. ..";
+
   for(int i = 0; i < 512; i++){
     pte_t pte = pagetable[i];
     if((pte & PTE_V)== 1){
