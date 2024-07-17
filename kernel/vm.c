@@ -440,3 +440,39 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+int 
+pagewalk(pagetable_t pagetable,uint64 level)
+{
+  char* front;
+  switch(level){
+    case 1:
+      front = "..";
+      break;
+    case 2:
+      front = ".. ..";
+      break;
+    case 3:
+      front = ".. .. ..";
+      break;
+  }
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V)== 1){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      printf("%s%d: pte %p pa %p\n",front,i,pte,child);
+      if(level<3){
+        pagewalk(child,level+1);
+      }
+      pagetable[i] = 0;
+    } 
+  }
+}
+
+int 
+vmprint(pagetable_t pagrtable)
+{
+  printf("page table %p\n");
+  pagewalk(pagrtable,1);
+}
