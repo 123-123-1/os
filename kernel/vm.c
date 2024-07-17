@@ -353,7 +353,7 @@ free(pagetable_t pagetable)
 }
 
 void 
-freekpage(pagetable_t pagetable,uint64 stack)
+freekpage(pagetable_t pagetable,pagetable_t stack)
 {
   if(stack)
   {
