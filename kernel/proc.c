@@ -40,6 +40,7 @@ procinit(void)
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
       p->kstack = va;
+      p->kstack_pa = pa;
   }
   kvminithart();
 }
@@ -112,6 +113,13 @@ found:
     release(&p->lock);
     return 0;
   }
+  p->kpagetable = nkvminit();
+  if(p->kpagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  nkvmmap(p->kpagetable,p->kstack,p->kstack_pa,PGSIZE,PTE_R | PTE_W);
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -139,6 +147,9 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  if(p->kpagetable)
+    free_without_leaf(p->kpagetable);
+  p->kpagetable = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -473,12 +484,14 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        w_satp(MAKE_SATP(p->kpagetable));
+        sfence_vma();
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        kvminithart();
         c->proc = 0;
-
         found = 1;
       }
       release(&p->lock);
