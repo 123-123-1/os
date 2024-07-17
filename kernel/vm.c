@@ -441,7 +441,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   }
 }
 
-int 
+void
 pagewalk(pagetable_t pagetable,uint64 level)
 {
   char* front;
@@ -464,13 +464,11 @@ pagewalk(pagetable_t pagetable,uint64 level)
       pagetable[i] = 0;
     } 
   }
-  return 0;
 }
 
-int 
+void
 vmprint(pagetable_t pagrtable)
 {
   printf("page table %p\n");
   pagewalk(pagrtable,1);
-  return 0;
 }
