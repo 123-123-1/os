@@ -30,7 +30,19 @@ procinit(void)
   initlock(&pid_lock, "nextpid");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+
+      // Allocate a page for the process's kernel stack.
+      // Map it high in memory, followed by an invalid
+      // guard page.
+      char *pa = kalloc();
+      if(pa == 0)
+        panic("kalloc");
+      uint64 va = KSTACK((int) (p - proc));
+      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      p->kstack = va;
+      p->kstack_pa = (uint64)pa;
   }
+  kvminithart();
 }
 
 // Must be called with interrupts disabled,
@@ -101,21 +113,14 @@ found:
     release(&p->lock);
     return 0;
   }
-  
+
   p->kpagetable = nkvminit();
   if(p->kpagetable == 0){
     freeproc(p);
     release(&p->lock);
     return 0;
   }
-  
-    
-  char *pa = kalloc();
-  if(pa == 0)
-    panic("kalloc");
-  uint64 va = KSTACK((int) (p - proc));
-  mappages(p->kpagetable,va, PGSIZE,(uint64)pa, PTE_R | PTE_W);
-  p->kstack = va;
+  nkvmmap(p->kpagetable,p->kstack,p->kstack_pa,PGSIZE,PTE_R);
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -144,8 +149,7 @@ freeproc(struct proc *p)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
   if(p->kpagetable)
-    freekpage(p->kpagetable,p->kstack);
-  p->kstack = 0;
+    freekpage(p->kpagetable);
   p->kpagetable = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -488,8 +492,8 @@ scheduler(void)
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
-        kvminithart(); 
         c->proc = 0;
+        kvminithart();
         found = 1;
       }
       release(&p->lock);
