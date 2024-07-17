@@ -59,9 +59,6 @@ nkvminit()
   // virtio mmio disk interface
   nkvmmap(p,VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
-  // CLINT
-  nkvmmap(p,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
-
   // PLIC
   nkvmmap(p,PLIC, PLIC, 0x400000, PTE_R | PTE_W);
 
