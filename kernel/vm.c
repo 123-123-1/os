@@ -461,7 +461,6 @@ pagewalk(pagetable_t pagetable,uint64 level)
       if(level<3){
         pagewalk((pagetable_t)child,level+1);
       }
-      pagetable[i] = 0;
     } 
   }
 }
