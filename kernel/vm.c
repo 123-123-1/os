@@ -463,7 +463,7 @@ pagewalk(pagetable_t pagetable,uint64 level)
       uint64 child = PTE2PA(pte);
       printf("%s%d: pte %p pa %p\n",front,i,pte,child);
       if(level<3){
-        pagewalk(child,level+1);
+        pagewalk((pagetable_t)child,level+1);
       }
       pagetable[i] = 0;
     } 
