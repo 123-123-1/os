@@ -86,6 +86,13 @@ kvminithart()
   sfence_vma();
 }
 
+void
+nkvminithart(pagetable_t p)
+{
+  w_satp(MAKE_SATP(p));
+  sfence_vma();
+}
+
 // Return the address of the PTE in page table pagetable
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page-table pages.
@@ -325,6 +332,36 @@ freewalk(pagetable_t pagetable)
     }
   }
   kfree((void*)pagetable);
+}
+
+void 
+free(pagetable_t pagetable)
+{
+    // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      free((pagetable_t)PTE2PA(pte));
+      pagetable[i] = 0;
+    } 
+    else if(pte & PTE_V){
+      pagetable[i] = 0;
+    }
+  }
+  kfree((void*)pagetable);
+}
+
+void 
+freekpage(pagetable_t pagetable,uint64 stack)
+{
+  if(stack)
+  {
+    pte_t *pte = walk(pagetable,stack, 0);
+    kfree((void *)PTE2PA(*pte));
+  }
+  
+  free(pagetable);
 }
 
 // Free user memory pages,
