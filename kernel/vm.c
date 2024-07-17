@@ -47,12 +47,49 @@ kvminit()
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 }
 
+pagetable_t
+nkvminit()
+{
+  pagetable_t p = (pagetable_t) kalloc();
+  memset(p, 0, PGSIZE);
+
+  // uart registers
+  nkvmmap(p,UART0, UART0, PGSIZE, PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  nkvmmap(p,VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // CLINT
+  nkvmmap(p,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+
+  // PLIC
+  nkvmmap(p,PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  nkvmmap(p,KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  nkvmmap(p,(uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  nkvmmap(p,TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  
+  return p;
+}
 // Switch h/w page table register to the kernel's page table,
 // and enable paging.
 void
 kvminithart()
 {
   w_satp(MAKE_SATP(kernel_pagetable));
+  sfence_vma();
+}
+
+void
+nkvminithart(pagetable_t p)
+{
+  w_satp(MAKE_SATP(p));
   sfence_vma();
 }
 
@@ -120,6 +157,14 @@ kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
   if(mappages(kernel_pagetable, va, sz, pa, perm) != 0)
     panic("kvmmap");
 }
+
+void 
+nkvmmap(pagetable_t p, uint64 va, uint64 pa, uint64 sz, int perm)
+{
+  if(mappages(p, va, sz, pa, perm) != 0)
+    panic("kvmmap");
+}
+
 
 // translate a kernel virtual address to
 // a physical address. only needed for
@@ -285,6 +330,22 @@ freewalk(pagetable_t pagetable)
     } else if(pte & PTE_V){
       panic("freewalk: leaf");
     }
+  }
+  kfree((void*)pagetable);
+}
+
+void 
+freekpage(pagetable_t pagetable)
+{
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      freekpage((pagetable_t)child);
+    } 
+    pagetable[i] = 0;
   }
   kfree((void*)pagetable);
 }
