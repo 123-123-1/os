@@ -146,6 +146,9 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kstack){
+    
+  }
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -477,13 +480,14 @@ scheduler(void)
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
+        kvminithart(p->kpagetable);
         c->proc = p;
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
-
+        
         found = 1;
       }
       release(&p->lock);
