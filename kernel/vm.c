@@ -59,6 +59,9 @@ nkvminit()
   // virtio mmio disk interface
   nkvmmap(p,VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
+  // CLINT
+  nkvmmap(p,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+
   // PLIC
   nkvmmap(p,PLIC, PLIC, 0x400000, PTE_R | PTE_W);
 
@@ -332,19 +335,33 @@ freewalk(pagetable_t pagetable)
 }
 
 void 
-freekpage(pagetable_t pagetable)
+free(pagetable_t pagetable)
 {
-  // there are 2^9 = 512 PTEs in a page table.
+    // there are 2^9 = 512 PTEs in a page table.
   for(int i = 0; i < 512; i++){
     pte_t pte = pagetable[i];
     if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
       // this PTE points to a lower-level page table.
-      uint64 child = PTE2PA(pte);
-      freekpage((pagetable_t)child);
+      free((pagetable_t)PTE2PA(pte));
+      pagetable[i] = 0;
     } 
-    pagetable[i] = 0;
+    else if(pte & PTE_V){
+      pagetable[i] = 0;
+    }
   }
   kfree((void*)pagetable);
+}
+
+void 
+freekpage(pagetable_t pagetable,pagetable_t stack)
+{
+  if(stack)
+  {
+    pte_t *pte = walk(pagetable,stack, 0);
+    kfree((void *)PTE2PA(*pte));
+  }
+  
+  free(pagetable);
 }
 
 // Free user memory pages,
