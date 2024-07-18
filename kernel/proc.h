@@ -106,5 +106,6 @@ struct proc {
   int interval;
   void(*handle);
   int passed_time;
+  int alarming;
   struct trapframe *trapframecopy;
 };

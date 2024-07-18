@@ -134,6 +134,7 @@ found:
   p->interval=0;
   p->handle=0;
   p->passed_time=0;
+  p->alarming=0;
   return p;
 }
 
@@ -163,6 +164,7 @@ freeproc(struct proc *p)
   p->passed_time=0;
   p->interval=0;
   p->handle=0;
+  p->alarming=0;
 }
 
 // Create a user page table for a given process,

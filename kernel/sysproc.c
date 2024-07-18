@@ -120,6 +120,6 @@ sys_sigreturn(void)
 {
   struct proc* p = myproc();
   memmove(p->trapframe,p->trapframecopy,sizeof( struct trapframe));
-  p->passed_time=0;
+  p->alarming=0;
   return p->trapframe->a0;
 }
