@@ -78,9 +78,6 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2){
-    acquire(&tickslock);
-    int t=ticks;
-    release(&tickslock);
     if(p->interval!=0&&p->handle!=0&&++p->passed_time==p->interval){
       memmove(p->trapframecopy,p->trapframe,sizeof(struct trapframe));
       p->trapframe->epc=(uint64)p->handle;
