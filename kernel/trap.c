@@ -81,11 +81,9 @@ usertrap(void)
     acquire(&tickslock);
     int t=ticks;
     release(&tickslock);
-    if(p->interval!=0&&p->handle!=0&&p->alarming==0&&t-p->last_time>p->interval){
+    if(p->interval!=0&&p->handle!=0&&++p->passed_time==p->interval){
       memmove(p->trapframecopy,p->trapframe,sizeof(struct trapframe));
       p->trapframe->epc=(uint64)p->handle;
-      p->last_time=t;
-      p->alarming=1;
     }
 
     yield();

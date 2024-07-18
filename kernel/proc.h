@@ -105,7 +105,6 @@ struct proc {
   char name[16];               // Process name (debugging)
   int interval;
   void(*handle);
-  int last_time;
+  int passed_time;
   struct trapframe *trapframecopy;
-  int alarming;
 };

@@ -133,8 +133,7 @@ found:
   p->context.sp = p->kstack + PGSIZE;
   p->interval=0;
   p->handle=0;
-  p->last_time=0;
-  p->alarming=0;
+  p->passed_time=0;
   return p;
 }
 
@@ -161,6 +160,9 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->passed_time=0;
+  p->interval=0;
+  p->handle=0;
 }
 
 // Create a user page table for a given process,
