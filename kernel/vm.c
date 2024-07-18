@@ -529,3 +529,18 @@ free_without_leaf(pagetable_t p)
   }
   kfree((void*)p);
 }
+
+
+void
+nuvmcopy(pagetable_t old, pagetable_t new, uint64 start,uint64 end)
+{
+  pte_t *u;
+  pte_t *k;
+
+  for(uint64 i = start; i < end; i += PGSIZE){
+    if((u = walk(old, i, 0)) == 0)
+      panic("uvmcopy: pte should exist");
+    k= walk(new,i,1);
+    *k=(*u)&(~PTE_U);
+    }
+}

@@ -49,6 +49,9 @@ sys_sbrk(void)
   addr = myproc()->sz;
   if(growproc(n) < 0)
     return -1;
+  if(n>0){
+    nuvmcopy(myproc()->pagetable,myproc()->kpagetable,addr,addr+n);
+  }
   return addr;
 }
 

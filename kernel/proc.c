@@ -240,7 +240,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
+  nuvmcopy(p->pagetable,p->kpagetable,0,p->sz);
   release(&p->lock);
 }
 
@@ -287,7 +287,7 @@ fork(void)
   np->sz = p->sz;
 
   np->parent = p;
-
+  nuvmcopy(np->pagetable,np->kpagetable,0,np->sz);
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -303,7 +303,7 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-
+  
   np->state = RUNNABLE;
 
   release(&np->lock);
