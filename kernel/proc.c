@@ -148,6 +148,10 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   uvmunmap(p->kpagetable,p->kstack,1,1);
   p->kstack=0;
+  if(p->kpagetable){
+    free_without_leaf(p->kpagetable);
+  }
+  p->kpagetable=0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
