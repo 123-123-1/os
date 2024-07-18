@@ -113,7 +113,7 @@ found:
     return 0;
   }
 
-    if((p->trapframecopy = (struct trapframe *)kalloc()) == 0){
+  if((p->trapframecopy = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
     return 0;
   }
@@ -134,6 +134,7 @@ found:
   p->interval=0;
   p->handle=0;
   p->last_time=0;
+  p->alarming=0;
   return p;
 }
 

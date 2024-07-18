@@ -107,5 +107,5 @@ struct proc {
   void(*handle);
   int last_time;
   struct trapframe *trapframecopy;
-  
+  int alarming;
 };
