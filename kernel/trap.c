@@ -83,6 +83,7 @@ usertrap(void)
     if(p->interval!=0&&p->handle!=0&&!p->alarming){
       p->passed_time++;
       if(p->passed_time>=p->interval){
+        p->alarming=1;
         memmove(p->trapframecopy,p->trapframe,sizeof(struct trapframe));
         p->trapframe->epc=(uint64)p->handle;
         p->passed_time=0;
@@ -228,4 +229,3 @@ devintr()
     return 0;
   }
 }
-
