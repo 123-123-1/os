@@ -100,26 +100,28 @@ sys_uptime(void)
 uint64
 sys_sigalarm(void)
 {
-  int interval;
-  uint64 hand;
-  if(argint(0,&interval)<0)
+  struct proc *p = myproc();
+  if (argint(0, &p->interval)) {
     return -1;
-  if(argaddr(0,&hand)<0)
+  }
+  // printf("good\n");
+  if (argaddr(1, &p->handler)) {
+    // printf("bad\n");
     return -1;
-  if(interval<0)
-    return -1;
-  struct proc* p=myproc();
-  p->interval=interval;
-  p->handle=(void*)hand;
-  p->passed_time=0;
+  }
+  // printf("good\n");
+  if (p->interval == 0 && p->handler == 0) {
+    p->interval = -1;
+  }
+  p->nextticks = p->interval;
   return 0;
 }
 
 uint64 
 sys_sigreturn(void)
 {
-  struct proc* p = myproc();
-  memmove(p->trapframe,p->trapframecopy,sizeof( struct trapframe));
-  p->alarming=0;
-  return p->trapframe->a0;
+  struct proc *p = myproc();
+  *(p->trapframe) = p->reservetrapframe;
+  p->inhandle = 0;
+  return 0;
 }
