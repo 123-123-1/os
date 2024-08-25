@@ -51,9 +51,9 @@ void find(char path[],char* filename)
       if(de.inum == 0)
         continue;
       if(strcmp(de.name,".")&&strcmp(de.name,"..")){  
-      memmove(p, de.name, DIRSIZ);
-      p[DIRSIZ] = 0;
-      find(buf,filename);
+        memmove(p, de.name, DIRSIZ);
+        p[DIRSIZ] = 0;
+        find(buf,filename);
       }
     }
     break;
