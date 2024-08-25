@@ -16,12 +16,12 @@ int main(int argc, char *argv[])
        read(p_to_c[0],p_str,4);
        close(p_to_c[0]);
        printf("<%d>:received %s\n",id,p_str);
-       write(c_to_p[1],"pong",4);
+       write(c_to_p[1],"pong",strlen("pong"));
        close(c_to_p[1]);
     }
     else{
        id=getpid();
-       write(p_to_c[1],"ping",4);
+       write(p_to_c[1],"ping",strlen("ping"));
        close(p_to_c[1]);
        int status;
        wait(&status);
