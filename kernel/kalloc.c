@@ -13,7 +13,7 @@ void freerange(void *pa_start, void *pa_end);
 
 
 struct page_ref{
-  struct spinlock *lock;
+  struct spinlock lock;
   int num;
 };
 
