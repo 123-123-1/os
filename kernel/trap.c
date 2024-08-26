@@ -100,7 +100,7 @@ usertrap(void)
       else{
         void* npa=kalloc();
         if(npa==0)
-        p->killed=1;
+          p->killed=1;
         else{
           memmove(npa,(void*)opa,PGSIZE);
           uint flag=PTE_FLAGS(*pte);
