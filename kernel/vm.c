@@ -190,7 +190,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     if(do_free){
       kfree((void*)pa);
     }
-    else{
+    else if(get_page_ref((void*)pa)>1){
       de_page_ref((void*)pa);
     }
     *pte = 0;
@@ -363,6 +363,7 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
+  while(len > 0){
     if(cowcheck(pagetable,dstva)){
       pte_t *pte = walk(pagetable, dstva, 0);
       uint64 old_pa=PTE2PA(*pte);
@@ -394,7 +395,6 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
         }
       }    
     }
-  while(len > 0){
 
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
