@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct page_ref;
 
 // bio.c
 void            binit(void);
@@ -63,6 +64,9 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+int             get_page_ref(void* pa);
+void            add_page_ref(void * pa);
+void            de_page_ref(void * pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -145,6 +149,7 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
+int             cowcheck(pagetable_t page,uint64 va);
 
 // uart.c
 void            uartinit(void);
@@ -185,3 +190,5 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+

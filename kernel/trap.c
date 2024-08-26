@@ -16,6 +16,21 @@ void kernelvec();
 
 extern int devintr();
 
+int cowcheck(pagetable_t page,uint64 va)
+{
+  if(va>=MAXVA){
+    return 0;
+  }
+  pte_t* pte;
+  if((pte=walk(page,va,0))==0)
+    return 0;
+  if((*pte&PTE_V)==0)
+    return 0;
+  if(*pte&PTE_C)
+    return 1;
+  return 0;
+}
+
 void
 trapinit(void)
 {
@@ -67,7 +82,39 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  }
+  else if(r_scause()==13||r_scause()==15){
+    uint64 va=r_stval();
+    if(cowcheck(p->pagetable,va)==0){
+      p->killed=1;
+    }
+    else{
+      va=PGROUNDDOWN(va);
+      pte_t* pte=walk(p->pagetable,va,0);
+      uint64 opa =PTE2PA(*pte);
+      if(get_page_ref((void*)opa)==1)
+      {
+        *pte |=PTE_W;
+        *pte &=(~PTE_C); 
+      }
+      else{
+        void* npa=kalloc();
+        if(npa==0)
+        p->killed=1;
+        else{
+          memmove(npa,(void*)opa,PGSIZE);
+          uint flag=PTE_FLAGS(*pte);
+          uint64 npte=PA2PTE(npa);
+          *pte = npte|flag;
+          *pte |= PTE_W;
+          *pte &=(~PTE_C);
+          kfree((void*)opa);
+        }
+      }
+    }
+  }
+
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;

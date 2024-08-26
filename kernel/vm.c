@@ -186,9 +186,12 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
+    uint64 pa = PTE2PA(*pte);
     if(do_free){
-      uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
+    }
+    else{
+      de_page_ref((void*)pa);
     }
     *pte = 0;
   }
@@ -319,14 +322,19 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    *pte &=(~PTE_W);
+    *pte |=PTE_C;
+
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    //if((mem = kalloc()) == 0)
+      //goto err;
+    //memmove(mem, (char*)pa, PGSIZE);
+
+    if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){
+      //kfree(mem);
       goto err;
     }
+    add_page_ref((void*)pa);
   }
   return 0;
 
@@ -355,8 +363,39 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-
   while(len > 0){
+    if(cowcheck(pagetable,dstva)){
+      pte_t *pte = walk(pagetable, dstva, 0);
+      uint64 old_pa=PTE2PA(*pte);
+      if(get_page_ref((void*)old_pa)==1)
+      {
+        *pte |= PTE_W;
+        *pte &= (~PTE_C);
+      }  
+      else
+      {
+        void* new_pa=kalloc();
+        if(new_pa==0)
+        {
+          return -1;
+        } 
+        else
+        {
+          //复制物理内存
+          memmove(new_pa,(void*)old_pa,PGSIZE);
+          //修改页表，更改PTE中的pa
+          //得到原来PTE中的flag，与新物理地址组合即可。
+          uint flags = PTE_FLAGS(*pte);
+          uint64 new_pte=PA2PTE(new_pa);
+          *pte = new_pte | flags;
+          //设置PTE_W，使该页可写
+          *pte |= PTE_W;
+          *pte &= (~PTE_C);
+          kfree((void*)old_pa);          
+        }
+      }    
+    }
+
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
