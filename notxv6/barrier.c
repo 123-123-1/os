@@ -39,7 +39,8 @@ barrier()
     pthread_mutex_unlock(&bstate.barrier_mutex);
   }
   else{
-    pthread_cond_wait(&bstate.barrier_cond,&bstate.barrier_mutex);; 
+    pthread_cond_wait(&bstate.barrier_cond,&bstate.barrier_mutex);
+    pthread_mutex_unlock(&bstate.barrier_mutex);
   }
 }
 
