@@ -22,22 +22,11 @@
 #include "defs.h"
 #include "fs.h"
 #include "buf.h"
-
-// struct {
-//   struct spinlock lock;
-//   struct buf buf[NBUF];
-
-//   // Linked list of all buffers, through prev/next.
-//   // Sorted by how recently the buffer was used.
-//   // head.next is most recent, head.prev is least.
-//   struct buf head;
-// } bcache;
 #define BUCKETSIZE 13
 
 struct {
   struct spinlock lock[13];
   struct buf buf[NBUF];
-
   struct BucketType {
       struct spinlock lock;
       struct buf head;
@@ -54,10 +43,12 @@ binit(void)
     bcache.head[i].prev=&bcache.head[i];
   }
   for(int i = 0;i < NBUF; ++ i)
-    bcache.buf[i].timestamp = ticks; // 0
+    bcache.buf[i].timestamp = ticks; 
+
 
   for(int i = 0;i < BUCKETSIZE; ++ i)
     bcache.buckets[i].head.next = 0;
+
 
   for(struct buf *b = bcache.buf; b < bcache.buf+NBUF; b++){
     b->next = bcache.buckets[0].head.next;
@@ -66,14 +57,12 @@ binit(void)
   }
 }
 
-// Look through buffer cache for block on device dev.
-// If not found, allocate a buffer.
-// In either case, return locked buffer.
+
 static struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;
-  int key = GetHashKey(dev, blockno);  // GetHashKey(dev, blockno);
+  int key = GetHashKey(dev, blockno);  
   struct BucketType *bucket = bucket = &bcache.buckets[key];
   // Is the block already cached?
   for(b = bcache.head[id].next; b!=& bcache.head[id]&&b->refcnt; b = b->next){
@@ -94,15 +83,15 @@ bget(uint dev, uint blockno)
   // Recycle the least recently used (LRU) unused buffer.
   release(&bucket->lock);
 
-   struct buf *before_latest = 0;
-  uint timestamp = 0;
+  struct buf *before_latest = 0;  
+  uint timestamp = 0; 
   struct BucketType *max_bucket = 0; 
 
   for(int i = 0;i < BUCKETSIZE; ++ i) {
     int find_better = 0;
     struct BucketType *bucket = &bcache.buckets[i];
     acquire(&bucket->lock);
-
+   
     for (b = &bucket->head; b->next; b = b->next) {
       if (b->next->refcnt == 0 && b->next->timestamp >= timestamp) {
           before_latest = b;
@@ -110,7 +99,8 @@ bget(uint dev, uint blockno)
           find_better = 1;
       }
     }
-
+  
+  
     if (find_better) {
       if (max_bucket != 0) release(&max_bucket->lock);
       max_bucket = bucket;
@@ -124,14 +114,13 @@ bget(uint dev, uint blockno)
     before_latest->next = before_latest->next->next;
     release(&max_bucket->lock);
   }
- 
+
   acquire(&bucket->lock);
   if (res != 0) {
     res->next = bucket->head.next;
     bucket->head.next = res;
   }
- 
- 
+
   for (b = bucket->head.next; b ; b = b->next) {
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
@@ -173,7 +162,6 @@ bget(uint dev, uint blockno)
 
   panic("bget: no buffers");
 }
-
 
 struct buf*
 bread(uint dev, uint blockno)
