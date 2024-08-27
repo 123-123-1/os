@@ -30,6 +30,7 @@ kinit()
 {
   for(int i=0;i<NCPU;i++){
   initlock(&kmems[i].lock, "kmem");
+  kmems[i].freelist=0;
   }
   freerange(end, (void*)PHYSTOP);
 }
@@ -88,6 +89,7 @@ kalloc(void)
   }
   else
   {
+    release(&kmems[id].lock);
     for(int i=0;i<NCPU;i++){
       if(i==id)
       continue;
