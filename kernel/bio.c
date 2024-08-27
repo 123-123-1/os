@@ -35,6 +35,7 @@
 #define BUCKETSIZE 13
 
 struct {
+  struct spinlock lock[13];
   struct buf buf[NBUF];
 
   struct BucketType {
@@ -43,19 +44,14 @@ struct {
   } buckets[BUCKETSIZE];
 } bcache;
 
-
-inline int GetHashKey(int dev, int blockno) {
-  return ((dev) + blockno) % BUCKETSIZE;
-}
-
-
 void
 binit(void)
 {
-  static char bcachelockname[BUCKETSIZE][9];
-  for(int i = 0;i < BUCKETSIZE; ++ i) {
-    snprintf(bcachelockname[i], 9, "bcache%d", i);
-    initlock(&bcache.buckets[i].lock, bcachelockname[i]);
+  struct buf *b;
+  for(int i=0;i<13;i++){
+    initlock(&bcache.lock[i], "bcache");
+    bcache.head[i].next=&bcache.head[i];
+    bcache.head[i].prev=&bcache.head[i];
   }
   for(int i = 0;i < NBUF; ++ i)
     bcache.buf[i].timestamp = ticks; // 0
@@ -66,7 +62,7 @@ binit(void)
   for(struct buf *b = bcache.buf; b < bcache.buf+NBUF; b++){
     b->next = bcache.buckets[0].head.next;
     initsleeplock(&b->lock, "buffer");
-    bcache.buckets[0].head.next = b;
+    bcache.head[0].next = b;
   }
 }
 
@@ -80,11 +76,16 @@ bget(uint dev, uint blockno)
   int key = GetHashKey(dev, blockno);  // GetHashKey(dev, blockno);
   struct BucketType *bucket = bucket = &bcache.buckets[key];
   // Is the block already cached?
-  acquire(&bucket->lock);
-  for (b = bucket->head.next; b; b = b->next) {
-    if (b->dev == dev && b->blockno == blockno) {
+  for(b = bcache.head[id].next; b!=& bcache.head[id]&&b->refcnt; b = b->next){
+    if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
-      release(&bucket->lock);
+      b->prev->next=b->next;
+      b->next->prev=b->prev;
+      b->next=bcache.head[id].next;
+      bcache.head[id].next=b;
+      b->prev=&bcache.head[id];
+      b->next->prev=b;
+      release(&bcache.lock[id]);
       acquiresleep(&b->lock);
       return b;
     }
@@ -134,20 +135,43 @@ bget(uint dev, uint blockno)
   for (b = bucket->head.next; b ; b = b->next) {
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
-      release(&bucket->lock);
+      b->prev->next=b->next;
+      b->next->prev=b->prev;
+      b->next=bcache.head[j].next;
+      bcache.head[j].next=b;
+      b->prev=&bcache.head[j];
+      b->next->prev=b;
+      b->dev=dev;
+      b->blockno=blockno;
+      b->valid = 0;
+      b->refcnt = 1;
+      release(&bcache.lock[j]);
       acquiresleep(&b->lock);
       return b;
     }
+    release(&bcache.lock[j]);   
   }
-  if (res == 0) panic("bget: no buffers");
+  acquire(&bcache.lock[id]);
+  b=bcache.head[id].prev;
+  if(b!=&bcache.head[id]){
+    b->refcnt=1;
+    b->prev->next=b->next;
+    b->next->prev=b->prev;
+    b->next=bcache.head[id].next;
+    bcache.head[id].next=b;
+    b->prev=&bcache.head[id];
+    b->next->prev=b;
+    b->dev=dev;
+    b->blockno=blockno;
+    b->valid = 0;
+    b->refcnt = 1;
+    release(&bcache.lock[id]);
+    acquiresleep(&b->lock);
+    return b;
+  }
+  release(&bcache.lock[id]);
 
-  res->valid = 0;
-  res->refcnt = 1;
-  res->dev = dev;
-  res->blockno = blockno;
-  release(&bucket->lock);
-  acquiresleep(&res->lock);
-  return res;
+  panic("bget: no buffers");
 }
 
 
@@ -180,29 +204,38 @@ brelse(struct buf *b)
 {
   if(!holdingsleep(&b->lock))
     panic("brelse");
+  
+  uint id=(b->blockno)%13;
+    
   releasesleep(&b->lock);
-  int key = GetHashKey(b->dev, b->blockno);
-  acquire(&bcache.buckets[key].lock);
+
+  acquire(&bcache.lock[id]);
   b->refcnt--;
-  if (b->refcnt == 0)
-    b->timestamp = ticks;
-  release(&bcache.buckets[key].lock);
+  if (b->refcnt == 0) {
+    // no one is waiting for it.
+    b->next->prev = b->prev;
+    b->prev->next = b->next;
+    bcache.head[id].prev->next=b;
+    b->next =&bcache.head[id];
+    b->prev = bcache.head[id].prev;
+    bcache.head[id].prev = b;
+  }
+  
+  release(&bcache.lock[id]);
 }
 
 void
 bpin(struct buf *b) {
-  int key = GetHashKey(b->dev, b->blockno);
-  acquire(&bcache.buckets[key].lock);
+  acquire(&bcache.lock[b->blockno%13]);
   b->refcnt++;
-  release(&bcache.buckets[key].lock);
+  release(&bcache.lock[b->blockno%13]);
 }
 
 void
 bunpin(struct buf *b) {
-  int key = GetHashKey(b->dev, b->blockno);
-  acquire(&bcache.buckets[key].lock);
+  acquire(&bcache.lock[b->blockno%13]);
   b->refcnt--;
-  release(&bcache.buckets[key].lock);
+  release(&bcache.lock[b->blockno%13]);
 }
 
 
