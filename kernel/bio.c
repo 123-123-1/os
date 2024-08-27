@@ -139,7 +139,6 @@ bget(uint dev, uint blockno)
   return res;
 }
 
-
 struct buf*
 bread(uint dev, uint blockno)
 {
