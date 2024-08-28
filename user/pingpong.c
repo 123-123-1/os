@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
        id=getpid();
        read(p_to_c[0],p_str,4);
        close(p_to_c[0]);
-       printf("<%d>:received %s\n",id,p_str);
+       printf("%d: received %s\n",id,p_str);
        write(c_to_p[1],"pong",strlen("pong"));
        close(c_to_p[1]);
     }
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
        wait(&status);
        read(c_to_p[0],p_str,4);
        close(c_to_p[0]);
-       printf("<%d>:received %s\n",id,p_str);
+       printf("%d: received %s\n",id,p_str);
 
     }
     exit(0);
